@@ -22,7 +22,7 @@ func NewZabbix(url string, contentType string) *Zabbix {
 	return z
 }
 
-func (z *Zabbix) login(username string, password string) (result map[string]interface{}, err error) {
+func (z *Zabbix) Login(username string, password string) (result map[string]interface{}, err error) {
 	z.requestBody, err = json.Marshal(map[string]interface{}{
 		"jsonrpc": "2.0",
 		"method":  "user.login",
@@ -37,28 +37,43 @@ func (z *Zabbix) login(username string, password string) (result map[string]inte
 	if err != nil {
 		return nil, err
 	}
+	result, err = z.Post()
+	if err != nil {
+		return nil, err
+	}
+	z.Auth = result["result"].(string)
+	return result, nil
+}
+
+func (z *Zabbix) Post() (result map[string]interface{}, err error) {
+	// fmt.Printf("%s\n", z.requestBody)
 	resp, err := http.Post(z.url, z.contentType, bytes.NewBuffer(z.requestBody))
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		return
-	}
+	body, _ := ioutil.ReadAll(resp.Body)
+	json.Unmarshal(body, &result)
+	// fmt.Println(result)
 	return result, nil
 }
-func main() {
-	url := "http://10.39.0.108/zabbix/api_jsonrpc.php"
-	contentType := "application/json-rpc"
-	z := NewZabbix(url, contentType)
-	r, err := z.login("Admin", "password")
 
-	if err != nil {
-		fmt.Println("err", err)
+func (z *Zabbix) Request(method string, params map[string]interface{}) (result map[string]interface{}, err error) {
+	if z.Auth != "" {
+		requestBody, _ := json.Marshal(map[string]interface{}{
+			"jsonrpc": "2.0",
+			"method":  method,
+			"params":  params,
+			"auth":    z.Auth,
+			"id":      2,
+		})
+		z.requestBody = requestBody
+		result, err = z.Post()
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
 	}
-
-	log.Println(r)
+	err = errors.New("not login")
+	return nil, err
 }
