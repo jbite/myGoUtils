@@ -13,6 +13,7 @@ type Zabbix struct {
 	url         string
 	contentType string
 	requestBody []byte
+	Auth        string
 }
 
 func NewZabbix(url string, contentType string) *Zabbix {
